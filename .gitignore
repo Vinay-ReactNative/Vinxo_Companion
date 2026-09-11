@@ -76,3 +76,4 @@ yarn-error.log
 
 # Local LLM models
 android/app/src/main/assets/models/*.gguf
+*.gguf
