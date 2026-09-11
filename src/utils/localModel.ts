@@ -1,7 +1,7 @@
 import { initLlama, loadLlamaModelInfo } from 'llama.rn';
+import RNFS from 'react-native-fs';
 
-const MODEL_PATH =
-  'file:///data/user/0/com.vinxocompanion/files/models/qwen2.5-1.5b-instruct-q4_k_m.gguf';
+const MODEL_PATH = `${RNFS.DocumentDirectoryPath}/models/Qwen3-4B-Q4_K_M.gguf`;
 
 export const testLocalModel = async () => {
   try {

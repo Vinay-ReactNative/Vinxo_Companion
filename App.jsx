@@ -12,6 +12,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import VinxoHomeScreen from './src/Presentation/Screens/VinxoHomeScreen';
+import  MemoryManagerTest  from './src/Playground/MemoryManagerTest';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -30,7 +31,8 @@ function AppContent() {
   return (
     <View style={styles.container}>
      <VinxoHomeScreen />
-     
+     {/* <MemoryManagerTest /> */}
+
     </View>
   );
 }

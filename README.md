@@ -1465,3 +1465,436 @@ Execution
 **Current workshop checkpoint: RealAIProvider --- next step is mapping
 VINXO conversation history into the documented Gemini stateless
 Interaction format.**
+
+
+
+
+12 september 2026 12:39AM 
+VINXO — Local LLM Evaluation & Regression Report
+
+Purpose: Historical record of local LLM experiments performed for VINXO's target mobile hardware.
+
+Target device: Motorola Edge 50 Fusion
+SoC: Qualcomm SM7435
+RAM: 8 GB
+CPU capability observed: ARM NEON, FMA, DOTPROD; no i8mm
+GPU: Adreno 710
+Runtime: llama.rn 0.13.0-rc.1
+React Native: 0.86.2
+Architecture: New Architecture + Hermes
+
+1. Why multiple models are being evaluated
+
+VINXO is not simply looking for a model that can generate text.
+
+The local model must satisfy all of these requirements simultaneously:
+
+Run locally on the target phone.
+Provide sufficiently fast responses for natural conversation.
+Maintain useful conversational context.
+Work reliably with VINXO's memory/context architecture.
+Avoid excessive RAM pressure.
+Remain stable during extended conversations.
+Support VINXO's intended conversational experience.
+Work within the native acceleration capabilities actually available on the target device.
+
+Therefore, a model that performs well on paper or on a desktop is not automatically suitable for VINXO.
+
+The evaluation is therefore device-specific rather than model-size-specific.
+
+2. Model Evaluation #1 — Qwen2.5 1.5B
+Model
+
+Qwen2.5-1.5B-Instruct
+
+Result
+
+Rejected for VINXO's current requirements.
+
+What worked
+
+The model demonstrated a major advantage:
+
+Very fast response generation.
+
+During testing, responses were generally arriving within approximately 2–3 seconds, making the model feel much closer to the desired conversational interaction.
+
+This established an important performance reference point for VINXO.
+
+What did not work
+
+The major problem was conversation/context reliability.
+
+The model was fast, but its ability to maintain and correctly utilize conversational context was not sufficient for VINXO's intended companion behavior.
+
+This became especially important because VINXO isn't intended to behave like a simple one-shot chatbot.
+
+VINXO needs to maintain things such as:
+
+Who is the user?
+What did we discuss?
+What information was previously established?
+What does a previous message refer to?
+What is the current conversation context?
+
+The 1.5B Qwen2.5 model did not provide the desired balance.
+
+Evaluation conclusion
+Speed        ██████████  Excellent
+Context      ██████░░░░  Insufficient
+Companion    ██████░░░░  Insufficient
+VINXO fit    ██████░░░░  Rejected
+Important historical finding
+
+This experiment established that:
+
+Fast generation alone is not sufficient for VINXO.
+
+A model can respond in 2–3 seconds and still fail the project's core conversational requirements.
+
+3. Model Evaluation #2 — Qwen3 4B
+Model
+
+Qwen3-4B-Q4_K_M
+
+Model size:
+
+~2.49 GB GGUF
+
+Configuration tested:
+
+n_ctx            = 2048
+n_threads        = 4
+n_gpu_layers     = 0
+cache_type_k     = q8_0
+cache_type_v     = q8_0
+enable_thinking  = false
+4. Initial Qwen3-4B integration
+
+Unlike the Qwen2.5 experiment, Qwen3-4B was selected specifically to investigate whether a newer Qwen generation could provide stronger conversational/context behavior while remaining practical on the phone.
+
+The model was successfully integrated into VINXO's local inference pipeline.
+
+The model was then subjected to repeated conversational testing.
+
+5. Regression / stability testing
+
+The Qwen3-4B model was tested through approximately 16 messages covering multiple categories.
+
+Testing included:
+
+Simple questions
+Medium-complexity questions
+Complex questions
+Team/friend introductions
+Einstein-related questions
+Gravity/science questions
+Multi-turn conversation
+Longer context accumulation
+
+The important result was that after a clean rebuild and repeated testing:
+
+The model remained stable without the earlier crash being reproduced.
+
+However, eventually the configured context limit was reached and the runtime returned:
+
+Error: Context is full
+
+This was treated as a context-capacity limitation, rather than evidence that the model itself was unstable.
+
+6. Qwen3-4B performance investigation
+
+Because the model was stable enough for continued testing, the next phase was controlled performance experimentation.
+
+The goal was:
+
+Change one variable → benchmark → compare → keep/reject.
+
+This prevented us from making multiple changes simultaneously and losing the ability to determine what actually helped.
+
+Experiment A — Baseline
+
+Configuration:
+
+Qwen3-4B-Q4_K_M
+KV cache      = default/F16
+Threads       = 4
+GPU layers    = 0
+
+Benchmark:
+
+context.bench(512, 128, 1, 3)
+
+Result:
+
+Metric	Result
+Prompt processing	25.8035 tok/s
+Token generation	4.6450 tok/s
+Threads	4
+GPU layers	0
+Flash Attention field	-1 / AUTO
+
+This became the Qwen3-4B control result.
+
+7. Experiment B — Q8 KV Cache
+
+Only the KV-cache configuration was changed:
+
+cache_type_k = 'q8_0'
+cache_type_v = 'q8_0'
+
+Result:
+
+Metric	Baseline	Q8 KV
+Prompt processing	25.8035	22.7586
+Token generation	4.6450	5.1620
+
+Change:
+
+Prompt processing:
+25.8035 → 22.7586
+≈ -11.8%
+
+Token generation:
+4.6450 → 5.1620
+≈ +11.1%
+
+A real completion also produced approximately:
+
+prompt_per_second     = 24.758750
+predicted_per_second  = 5.461526
+Decision
+
+KEEP Q8 KV.
+
+Although prompt processing became slower, token generation—the more important metric for interactive response delivery—improved.
+
+This became the current Qwen3-4B configuration.
+
+8. Experiment C — Increase CPU threads from 4 → 6
+
+Only the thread count was changed:
+
+n_threads = 6
+
+Q8 KV remained enabled.
+
+Result:
+
+Metric	Q8 + 4 threads	Q8 + 6 threads
+Prompt processing	22.7586	18.7281
+Token generation	5.1620	4.4442
+
+Change:
+
+Prompt processing:
+≈ -17.7%
+
+Token generation:
+≈ -13.9%
+Decision
+
+REJECT 6 threads.
+
+The target device performs better with the tested 4-thread configuration.
+
+This was an important result because it demonstrated that:
+
+More CPU threads ≠ faster inference on this hardware.
+
+9. Current best Qwen3-4B configuration
+
+After the controlled experiments:
+
+Model:
+Qwen3-4B-Q4_K_M
+
+Context:
+2048
+
+Threads:
+4
+
+GPU:
+0 layers
+
+KV cache:
+Q8_0 / Q8_0
+
+Thinking:
+disabled
+
+Best controlled benchmark:
+
+Prompt processing:
+22.758631 tok/s
+
+Token generation:
+5.162027 tok/s
+10. Hardware/backend investigation
+
+The project also investigated whether additional Snapdragon acceleration could be enabled.
+
+The phone reports:
+
+SoC = SM7435
+Platform = parrot
+
+CPU features include:
+
+NEON
+FMA
+DOTPROD
+
+but:
+
+i8mm = NOT AVAILABLE
+
+The existing llama.rn native library selection therefore resolves to the DOTPROD CPU backend:
+
+rnllama_jni_v8_2_dotprod
+
+The investigation also traced the Hexagon/OpenCL native-library selection.
+
+The important conclusion was:
+
+The available Hexagon/OpenCL prebuilt path is tied to an i8mm + Hexagon combination that this device does not satisfy.
+
+Therefore, simply changing the model does not magically enable Hexagon.
+
+This is a hardware/backend compatibility limitation, not a Qwen3 model limitation.
+
+11. Flash Attention investigation
+
+Flash Attention was also investigated rather than blindly enabled.
+
+With Q8 KV configuration, the native runtime behavior indicates that quantized V cache requires Flash Attention and AUTO is promoted to the enabled path.
+
+Therefore:
+
+flash_attn_type = AUTO
+
+does not mean that the actual compute path is necessarily running without Flash Attention.
+
+Consequently, explicitly changing:
+
+AUTO → ON
+
+was not considered a meaningful independent optimization experiment.
+
+12. Final assessment — Qwen3-4B
+Strengths
+Better fit for VINXO's conversational requirements than the previous 1.5B experiment.
+Successfully integrated into the local inference pipeline.
+Survived extended regression testing.
+No repeated crash observed after clean rebuild/testing.
+Q8 KV provided measurable generation-speed improvement.
+Stable enough to become a meaningful benchmark/control model.
+Weaknesses
+Token generation remains approximately 5 tok/s.
+This is still too slow for the desired VINXO conversational experience.
+Increasing threads to 6 made performance worse.
+The target phone cannot use the currently available i8mm-dependent Hexagon/OpenCL path.
+Context capacity remains constrained by the configured n_ctx.
+Decision
+
+Qwen3-4B is technically viable but not an acceptable final VINXO model for the current target hardware/performance requirement.
+
+13. What these two failed experiments taught us
+
+This is actually the most valuable part of the history.
+
+We now have two very different failure modes:
+
+                 VINXO Model Search
+                        │
+          ┌─────────────┴─────────────┐
+          │                           │
+    Qwen2.5 1.5B                Qwen3 4B
+          │                           │
+       FAST                        BETTER
+      2–3 sec                    CONTEXT
+          │                           │
+          ▼                           ▼
+   Context quality              Too slow
+   insufficient                 ~5 tok/s
+          │                           │
+          └─────────────┬─────────────┘
+                        ▼
+                Neither is ideal
+
+So our target isn't simply:
+
+"Find the fastest model."
+
+It is:
+
+Find the smallest model that provides sufficient VINXO-level conversational/context capability while remaining fast enough on this exact phone.
+
+That's a much more precise engineering target.
+
+14. Current VINXO model-selection history
+
+This is the section I'd actually keep permanently in the project documentation:
+
+VINXO LOCAL LLM HISTORY
+────────────────────────────────────────
+
+Model #1
+Qwen2.5-1.5B-Instruct
+        │
+        ├── Response speed:     ✅
+        ├── ~2–3 sec responses: ✅
+        ├── Context quality:    ❌
+        └── Decision: REJECTED
+
+
+Model #2
+Qwen3-4B-Q4_K_M
+        │
+        ├── Context/conversation: ✅ better
+        ├── Stability:             ✅
+        ├── Q8 KV improvement:     ✅
+        ├── ~5 tok/s generation:   ❌ too slow
+        ├── Hexagon acceleration:  ❌ unavailable
+        └── Decision: NOT FINAL
+
+
+NEXT
+Model #3
+        │
+        ▼
+Candidate model
+        │
+        ├── Benchmark
+        ├── Regression test
+        ├── Context test
+        ├── Stability test
+        └── VINXO suitability
+The important philosophy
+
+Maga, these aren't wasted experiments.
+
+They've already given us hard constraints for the next model:
+
+We know we don't want:
+
+Qwen2.5-1.5B behavior
+
+Fast enough, but insufficient context/conversation capability.
+
+We know we don't want:
+
+Qwen3-4B behavior
+
+Better conversational capability, but too slow on this specific CPU-only device.
+
+Therefore our next target is:
+
+The middle ground.
+
+And that's exactly why the next model search should focus on roughly 2B–3.5B models, regardless of model family, rather than blindly trying another Qwen3 size.
+
+That way, when VINXO eventually reaches the model that feels right, the documentation can honestly say:
+
+“This was not the first model. VINXO went through multiple local LLM evaluations, including Qwen2.5-1.5B and Qwen3-4B, with controlled benchmarking, regression testing, hardware/backend investigation, and context evaluation. The final model was selected based on the target device rather than benchmark claims.”

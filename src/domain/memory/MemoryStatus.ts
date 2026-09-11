@@ -1,0 +1,1 @@
+export type  MemoryStatus = | 'DUPLICATE'|'CONFLICT' | 'ADDED' |'UPDATED'| 'UNAUTHORIZED'
