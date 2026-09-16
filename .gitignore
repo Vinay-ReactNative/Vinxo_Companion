@@ -80,3 +80,6 @@ android/app/src/main/assets/models/*.gguf
 
 # Local Kokoro TTS model
 android/app/src/main/assets/kokoro-en-v0_19/
+
+# Local environment secrets
+.env
