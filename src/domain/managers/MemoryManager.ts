@@ -13,7 +13,6 @@ export class MemoryManager {
         else {
             return 'UNAUTHORIZED'
         }
-
      }
     //add memory append the new memory to the memory array  while memory:Memory checks that the incominng memory should follow Memory 
     addMemory(memory:Memory) : MemoryStatus {

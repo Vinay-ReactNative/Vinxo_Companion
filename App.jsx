@@ -5,23 +5,32 @@
  * @format
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import { useEffect } from 'react';
+import { Provider } from 'react-redux';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import VinxoHomeScreen from './src/Presentation/Screens/VinxoHomeScreen';
-import  MemoryManagerTest  from './src/Playground/MemoryManagerTest';
+import { hydrateStore, store } from './src/store/store';
+import NativeControlPlayground from './src/Playground/NativeControlPlayground';
+import KokoroTest from './src/Playground/KokoroTest';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
+  useEffect(() => {
+    hydrateStore();
+  }, []);
+
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
+    <Provider store={store}>
+      <SafeAreaProvider>
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <AppContent />
+      </SafeAreaProvider>
+    </Provider>
   );
 }
 
@@ -30,8 +39,9 @@ function AppContent() {
 
   return (
     <View style={styles.container}>
-     <VinxoHomeScreen />
-     {/* <MemoryManagerTest /> */}
+    {/* <VinxoHomeScreen /> */}
+    {/* <NativeControlPlayground /> */}
+    <KokoroTest />
 
     </View>
   );

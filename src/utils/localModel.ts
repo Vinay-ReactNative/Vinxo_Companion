@@ -1,7 +1,7 @@
 import { initLlama, loadLlamaModelInfo } from 'llama.rn';
 import RNFS from 'react-native-fs';
 
-const MODEL_PATH = `${RNFS.DocumentDirectoryPath}/models/Qwen3-4B-Q4_K_M.gguf`;
+const MODEL_PATH = `${RNFS.DocumentDirectoryPath}/models/Qwen3-1.7B-Q4_K_M.gguf`;
 
 export const testLocalModel = async () => {
   try {

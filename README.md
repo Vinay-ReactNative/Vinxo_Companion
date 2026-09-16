@@ -1898,3 +1898,822 @@ And that's exactly why the next model search should focus on roughly 2B–3.5B m
 That way, when VINXO eventually reaches the model that feels right, the documentation can honestly say:
 
 “This was not the first model. VINXO went through multiple local LLM evaluations, including Qwen2.5-1.5B and Qwen3-4B, with controlled benchmarking, regression testing, hardware/backend investigation, and context evaluation. The final model was selected based on the target device rather than benchmark claims.”
+
+
+# VINXO — Local AI Brain
+
+VINXO uses a local Large Language Model as its primary offline/private AI brain.
+
+The goal is to provide fast, private, and offline-capable conversations without depending on a cloud API for every interaction.
+
+## 🧠 Local Brain — Model Selection
+
+After experimenting with different small local models, **Qwen3-1.7B** was selected as the current local brain for VINXO.
+
+The model was selected because it provides a practical balance between:
+
+- Model size
+- Mobile memory usage
+- Inference speed
+- Conversational capability
+- Structured output capability
+- Local Android execution
+
+### Target Device
+
+- **Device:** Motorola Edge 50 Fusion
+- **SoC:** Snapdragon 7s Gen 2
+- **GPU:** Adreno 710
+- **RAM:** 8 GB
+- **Storage:** 128 GB
+
+### Current Model
+
+```text
+Qwen3-1.7B
+Quantization: Q4_K_M
+Format: GGUF
+Size: ~1.28 GB
+
+
+React Native
+      ↓
+LocalAIProvider
+      ↓
+LocalLLMService
+      ↓
+llama.rn
+      ↓
+Qwen3-1.7B Q4_K_M
+      ↓
+Local AI Response
+
+⚙️ Local LLM Integration
+
+VINXO uses llama.rn to run the GGUF model directly on Android.
+
+React Native
+      ↓
+LocalAIProvider
+      ↓
+LocalLLMService
+      ↓
+llama.rn
+      ↓
+Qwen3-1.7B Q4_K_M
+      ↓
+Local AI Response
+LocalLLMService
+
+Responsible for:
+
+Loading the GGUF model
+Initializing the llama context
+Managing the local inference engine
+Running model completions
+LocalAIProvider
+
+Responsible for:
+
+Preparing conversation history
+Preparing model context
+Sending messages to the local model
+Returning the generated response
+📱 Android Model Loading
+
+The Qwen GGUF model is bundled with the Android application and copied into the application's document directory when required.
+
+Android App
+   │
+   ├── assets/
+   │      └── models/
+   │             └── Qwen3-1.7B-Q4_K_M.gguf
+   │
+   ↓
+Application Document Directory
+   │
+   └── models/
+          └── Qwen3-1.7B-Q4_K_M.gguf
+
+The model is then initialized through llama.rn.
+
+🧪 Initial Model Testing
+
+After successfully integrating Qwen3-1.7B, inference was tested directly on the physical Android device.
+
+Initial configuration:
+
+Context size: 2048
+Threads: 4
+GPU layers: 0
+
+The first objective was to establish a working baseline before attempting further optimization.
+
+📊 Performance Testing
+
+Initial measurements on the Motorola Edge 50 Fusion were approximately:
+
+Prompt Processing:
+~40–55 tokens/sec
+
+Text Generation:
+~8–10 tokens/sec
+
+One observed benchmark:
+
+Prompt Processing: ~55.58 tok/s
+Text Generation:   ~9.55 tok/s
+
+Another observed completion:
+
+Prompt Processing: ~53.81 tok/s
+Text Generation:   ~10.59 tok/s
+
+Longer-context testing produced approximately:
+
+Prompt Processing: ~40.05 tok/s
+Text Generation:   ~7.90 tok/s
+
+These are device-specific observations and are being used as the current performance baseline.
+
+🔬 Thread Testing
+
+Different thread configurations were tested.
+
+A previous 6-thread test produced approximately:
+
+Prompt Processing: ~29.02 tok/s
+Text Generation:   ~8.10 tok/s
+
+The current configuration therefore uses:
+
+n_threads: 4
+
+Further optimization will be based on actual device benchmarks.
+
+🧠 Qwen3 Thinking Mode
+
+Qwen3 supports both thinking and non-thinking modes.
+
+VINXO currently uses non-thinking mode for normal companion conversations:
+
+enable_thinking: false
+
+This keeps normal conversations responsive without adding unnecessary reasoning overhead.
+
+Thinking mode can be explored later for tasks that require deeper reasoning.
+
+🧪 Benchmarking Strategy
+
+The llama benchmark was used during development to understand the capabilities of the device.
+
+The benchmark is not executed during normal VINXO conversations.
+
+Normal operation remains:
+
+User
+ ↓
+VINXO
+ ↓
+Qwen3
+ ↓
+Response
+
+Benchmarking is only used when performance needs to be measured.
+
+🧠 Memory Architecture
+
+After getting the local model running, the next stage was building a structured memory system around Qwen.
+
+Memory is intentionally kept separate from the conversation foundation.
+
+Conversation.ts        🔒
+Message.ts             🔒
+
+LocalAIProvider.ts
+LocalLLMService.ts
+
+Memory.ts
+MemoryStatus.ts
+MemoryManager.ts
+MemoryExtractor.ts
+ContextBuilder.ts
+AIMessage.ts
+
+Conversation.ts and Message.ts are foundation files and are intentionally not modified.
+
+🗂️ Structured Memory
+
+VINXO memories currently use:
+
+IDENTITY
+RELATIONSHIP
+PERSON
+PREFERENCE
+FACT
+
+A memory contains:
+
+id
+category
+key
+value
+createdAt
+updatedAt
+
+Memory changes are controlled by MemoryManager.
+
+Current memory states:
+
+ADDED
+DUPLICATE
+UPDATED
+UNAUTHORIZED
+🔍 Memory Extraction
+
+A separate MemoryExtractor was introduced so memory extraction remains independent from normal conversation generation.
+
+User Message
+      ↓
+MemoryExtractor
+      ↓
+Memory | null
+      ↓
+MemoryManager
+      ↓
+Stored Memory
+
+The extractor itself does not directly modify the memory store.
+
+🧪 Memory Extraction Testing
+
+The extractor was tested using real conversation messages.
+
+Examples:
+
+"Hi vinxo"
+→ null
+"My name is Vinay"
+→ IDENTITY memory
+"Thanks vinxo tell me a joke"
+→ null
+"Haha thats funny one vinxo"
+→ null
+"Hey my frds are here shivu and jerin"
+→ RELATIONSHIP memory
+
+The initial experiment successfully demonstrated that Qwen can distinguish between normal conversation and information that may be useful as long-term memory.
+
+Some category and key normalization is still being refined.
+
+🧩 Context Building
+
+Extracted memories are converted into model-facing context through ContextBuilder.
+
+Example:
+
+IDENTITY: name = Vinay
+PREFERENCE: food = Pizza
+FACT: project = VINXO
+
+The resulting memory context is provided to Qwen as part of the system context.
+
+MemoryManager
+      ↓
+getMemories()
+      ↓
+ContextBuilder
+      ↓
+Memory Context
+      ↓
+LocalAIProvider
+      ↓
+Qwen3
+🧪 Current Memory Pipeline
+
+The intended complete pipeline is:
+
+Conversation
+      ↓
+User Messages Only
+      ↓
+MemoryExtractor
+      ↓
+Memory | null
+      ↓
+MemoryManager
+      ↓
+Stored Memories
+      ↓
+ContextBuilder
+      ↓
+Memory Context
+      ↓
+LocalAIProvider
+      ↓
+Qwen3-1.7B
+
+Memory extraction has already been tested.
+
+The next major test is verifying that Qwen actually uses the extracted memory correctly in future conversations.
+
+👥 Multi-Person Conversation Testing
+
+VINXO is also being tested with multiple people interacting with the same AI.
+
+The goal is for VINXO to understand:
+
+Captain Vinay as the primary user
+Temporary guests
+Current speaker
+Previous conversation participants
+People being discussed
+When a guest leaves
+When Captain returns
+
+Qwen3-1.7B can understand many of these situations, but long multi-person conversations exposed limitations when speaker state is handled entirely through the system prompt.
+
+Observed issues include:
+
+Last identified speaker sometimes becoming sticky
+Confusing the person being discussed with the current speaker
+Incorrectly transferring relationships between people
+Inconsistent exit/return handling
+
+The current direction is to eventually handle speaker state at the application level rather than forcing the small model to infer everything from conversation history.
+
+Future architecture:
+
+Speaker Recognition
+        ↓
+currentSpeaker
+        ↓
+VINXO Context
+        ↓
+Qwen
+
+For example:
+
+currentSpeaker = VINAY
+
+or:
+
+currentSpeaker = GUEST
+
+This will eventually connect with VINXO's voice authentication system.
+
+🚧 Current Status
+Local Brain
+Qwen3-1.7B Q4_K_M          ✅
+GGUF model                 ✅
+llama.rn                   ✅
+Android integration        ✅
+Physical device testing    ✅
+Performance baseline       ✅
+Non-thinking mode          ✅
+Thread testing             ✅
+Memory
+Memory model               ✅
+MemoryManager              ✅
+MemoryExtractor            ✅
+ContextBuilder             ✅
+Initial extraction tests   ✅
+Memory injection           ✅
+Memory usage testing       🚧
+Persistent memory          🚧
+Multi-Person Context
+Basic speaker recognition  ⚠️
+Guest conversations        ⚠️
+Exit/return handling       ⚠️
+Application-level speaker
+state                      🚧
+Voice-based recognition    🔮
+
+🚧 Work In Progress
+
+The local brain is still under active development.
+
+Current priorities are:
+
+Complete the memory pipeline
+Verify memory usage by Qwen
+Improve context handling
+Continue multi-person testing
+Establish application-level speaker context
+Continue performance testing
+Integrate voice
+Add authentication
+Later connect local and cloud brains
+
+Qwen3-1.7B Q4_K_M is currently the working mobile baseline for VINXO.
+
+The architecture is being built incrementally, with each layer tested before moving to the next.
+
+## PAUSED THE  MEMORY AND CONTEXT TILL COMPLETION OF NATIVE ANDROID PLAYGROUND AND VOICE INTEGRATION AND FOR NATIVE ANDROID  PLYGROUND
+
+15/09/26
+
+## Native Android Capabilities
+
+VINXO currently includes a Native Android Playground implemented through a Kotlin ↔ React Native bridge.
+
+The playground provides a set of device-level controls and Android integrations that can later be exposed as VINXO tools for AI-driven actions.
+
+### Device Controls
+
+* Torch — Turn flashlight on/off
+* Launch Applications — Launch apps by app name or package name
+* Contacts — Read contacts and access contacts by name
+* Phone Calls — Initiate calls using a contact name
+* SMS — Open the SMS composer
+* Battery — Read current battery status
+* Volume — Adjust device volume
+* Media — Play/pause media
+* Brightness — Open and manage brightness controls
+* Location — Check location status
+* Wi-Fi — Check Wi-Fi status
+* Bluetooth — Check Bluetooth status
+* Alarm — Set alarms
+* Timer — Set timers
+* Vibration — Trigger device vibration
+* Camera — Open the device camera
+* Audio Recorder — Open the audio recorder
+* Notifications — Open notification settings
+* Screenshot — Request screenshot/capture permission
+* Android Settings — Open Android system settings
+
+### Permission Handling
+
+VINXO requests permissions only when the related functionality is used.
+
+Currently handled permissions include:
+
+* Camera
+* Contacts
+* Phone calls
+* SMS
+* Microphone
+* Location
+* Bluetooth
+* Notifications
+* System brightness/settings access
+
+The permission flow is designed around Android's permission model, allowing the user to grant or deny access when a feature requires it.
+
+### Android System Screens
+
+Some operations require explicit user interaction or system-level confirmation. VINXO therefore launches the appropriate Android system screen instead of attempting to bypass the platform restrictions.
+
+These include:
+
+* Brightness settings
+* Notification access
+* Screenshot capture/permission
+* Alarms and timers
+* SMS composition
+* Other protected Android settings
+
+### Architecture
+
+```text
+React Native
+     │
+     ▼
+Kotlin Native Bridge
+     │
+     ▼
+Android APIs
+     │
+     ▼
+Device / System
+```
+
+The current Playground is primarily intended for development and testing.
+
+The long-term goal is to convert these native capabilities into structured VINXO tools that can be invoked through the VINXO orchestration layer.
+
+```text
+User / Voice
+     ↓
+VINXO
+     ↓
+LLM
+(Qwen / Gemini)
+     ↓
+Intent / Tool
+     ↓
+VINXO Tool Router
+     ↓
+Kotlin Native Bridge
+     ↓
+Android API
+     ↓
+Device Action
+```
+
+### Current Status
+
+**Native Android Playground — Completed**
+
+The current implementation establishes the foundation for VINXO's device-control layer. Further work will focus on connecting these capabilities to VINXO's context, memory, AI routing, and voice systems.
+
+
+16/09/26
+
+## 🎙️ Local Voice / Kokoro TTS Integration
+
+VINXO currently includes a local Text-to-Speech (TTS) foundation using **Kokoro TTS through `react-native-sherpa-onnx`**.
+
+The current implementation runs entirely on the Android device using CPU inference and streams generated PCM audio directly to the native Android audio player.
+
+### Current Architecture
+
+```text
+Text
+  ↓
+Kokoro TTS
+  ↓
+Sherpa-ONNX
+  ↓
+PCM Audio Chunks
+  ↓
+React Native Streaming Layer
+  ↓
+Android Native AudioTrack
+  ↓
+🔊 Speaker
+
+
+
+Package
+npm install react-native-sherpa-onnx
+
+Current version:
+
+react-native-sherpa-onnx@0.4.4
+1. Kokoro Model
+
+The Kokoro model used by VINXO is:
+
+kokoro-en-v0_19
+
+The model contains:
+
+kokoro-en-v0_19/
+├── model.onnx
+├── voices.bin
+├── tokens.txt
+└── espeak-ng-data/
+
+The model is currently stored inside Android assets:
+
+android/app/src/main/assets/kokoro-en-v0_19/
+
+Sherpa-ONNX loads the model from the Android asset path.
+
+2. Streaming TTS
+
+VINXO uses the streaming API rather than generating a complete audio file first.
+
+The engine is created using:
+
+createStreamingTTS()
+
+with Kokoro configured as:
+
+{
+  modelType: 'kokoro',
+  provider: 'cpu',
+  numThreads: 4,
+}
+
+The model is loaded from:
+
+modelPath: {
+  type: 'asset',
+  path: 'kokoro-en-v0_19',
+}
+
+Kokoro configuration currently uses:
+
+modelOptions: {
+  kokoro: {
+    lengthScale: 1.0,
+  },
+}
+3. Voice Selection
+
+Kokoro provides multiple voices through speaker IDs (sid).
+
+VINXO tested multiple speaker IDs during the initial integration.
+
+Current selected voice:
+
+sid: 1
+
+The voice can be changed by modifying the sid value during speech generation.
+
+Example:
+
+{
+  sid: 1,
+  speed: 1.0,
+}
+4. PCM Streaming
+
+Kokoro does not directly play the generated speech.
+
+It generates audio samples which are delivered as PCM chunks.
+
+The streaming flow is:
+
+generateSpeechStream()
+        ↓
+     onChunk()
+        ↓
+  chunk.samples
+        ↓
+ writePcmChunk()
+        ↓
+ Native Android AudioTrack
+        ↓
+      Speaker
+
+Each generated chunk contains PCM samples and its sample rate.
+
+The chunks are sent directly to the native PCM player instead of first creating a WAV/MP3 file.
+
+5. Native Android PCM Player
+
+Sherpa-ONNX provides native PCM playback support.
+
+VINXO starts the player using:
+
+startPcmPlayer(sampleRate, 1)
+
+The second parameter is the number of channels.
+
+Kokoro is currently played as:
+
+1 channel
+= Mono
+
+The native Android implementation uses AudioTrack with PCM float audio for streaming playback.
+
+The lifecycle is:
+
+startPcmPlayer()
+       ↓
+generateSpeechStream()
+       ↓
+onChunk()
+       ↓
+writePcmChunk()
+       ↓
+onChunk()
+       ↓
+writePcmChunk()
+       ↓
+...
+       ↓
+onEnd()
+       ↓
+stopPcmPlayer()
+
+The native player releases its AudioTrack when stopped.
+
+6. Current Playground
+
+The current implementation is intentionally kept inside a Playground/Test screen.
+
+It allows testing:
+
+Kokoro initialization
+Local model loading
+CPU inference
+Sample rate
+Number of available speakers
+Voice selection using sid
+Streaming speech generation
+PCM chunk generation
+Native PCM playback
+Speech speed
+Longer text / paragraph playback
+
+Example test:
+
+Hello Vinay. Welcome back to VINXO. Today we are testing local speech generation using Kokoro running entirely on the Android device. The speech is generated locally, converted into PCM audio chunks, and streamed directly to the speaker. There is no cloud voice service involved in this process. This is only the beginning of the VINXO voice system.
+7. Important Observation
+
+Punctuation affects Kokoro's speech rhythm.
+
+For example:
+
+Hello Vinay. This is VINXO.
+
+can produce a noticeable pause after the full stop.
+
+Using:
+
+Hello Vinay, this is VINXO.
+
+produces a shorter natural transition.
+
+This means VINXO will eventually need its own speech/text preprocessing layer to control sentence boundaries and conversational pauses.
+
+8. Current Status
+✅ Completed
+ Installed react-native-sherpa-onnx
+ Added Kokoro model
+ Added Kokoro model to Android assets
+ Loaded Kokoro locally
+ CPU inference working
+ Streaming TTS working
+ PCM chunks received
+ Native PCM player working
+ Audio output working
+ Tested multiple Kokoro voices
+ Selected sid: 1
+ Tested paragraph-length speech
+ Confirmed local speech playback on Android
+9. Current Scope
+
+The Kokoro integration is currently independent from VINXO's local LLM.
+
+The current architecture intentionally keeps:
+
+Local Brain
+Qwen
+  │
+  │   NOT CONNECTED YET
+  │
+Local Voice
+Kokoro
+
+The purpose of the current phase is to establish and validate the local voice infrastructure independently.
+
+10. Future Voice Architecture
+
+The eventual VINXO voice system is planned to connect multiple independent components:
+
+             VINXO Voice System
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+    Voice Input          Voice Output
+          │                   │
+     Speech / Wake       Kokoro TTS
+          │                   │
+          ▼                   ▼
+     Voice Auth            PCM Audio
+          │                   │
+          └─────────┬─────────┘
+                    │
+                    ▼
+               VINXO Core
+                    │
+             ┌──────┴──────┐
+             │             │
+        Local Brain    Native Actions
+           Qwen        Torch / Apps / etc.
+
+Future work includes:
+
+Wake-word detection
+Voice authentication
+Speech recognition
+Background voice operation
+Locked-screen voice interaction
+Native device commands
+Local LLM integration
+Connecting LLM responses to Kokoro
+Real-time response-to-speech streaming
+Voice interruption / stop handling
+Speech preprocessing and natural pause control
+Battery-efficient voice lifecycle
+
+These features are not part of the current Kokoro integration yet.
+
+🎯 Milestone
+
+VINXO has successfully reached its first local voice milestone:
+
+Local Text
+    ↓
+Kokoro
+    ↓
+Sherpa-ONNX
+    ↓
+PCM Streaming
+    ↓
+Android Native AudioTrack
+    ↓
+🔊 Real Voice
+
+This establishes the local TTS foundation required for the future VINXO voice system.
+
+
+That is a good **“end of today's chapter”** README entry, maga. 😎
+
+Push it, close the laptop, and take the break. **Mark 1 voice system is officially logged.** 🕺🤖🔥
+
