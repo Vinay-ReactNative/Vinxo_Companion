@@ -2717,3 +2717,289 @@ That is a good **“end of today's chapter”** README entry, maga. 😎
 
 Push it, close the laptop, and take the break. **Mark 1 voice system is officially logged.** 🕺🤖🔥
 
+23 september 2026 
+
+VINXO V1 — Speech-to-Text Regression & Stress Test
+STT Model Decision
+
+Selected model: Whisper Base INT8
+Runtime: react-native-sherpa-onnx / Sherpa-ONNX
+Mode: Offline
+Language: English
+Task: Transcription
+Provider: CPU
+
+Whisper Base INT8 has been selected as the VINXO V1 Speech-to-Text (STT) model after regression testing and real-world stress testing against Whisper Tiny INT8.
+
+V1 is intentionally scoped to English-only speech recognition. Multilingual speech recognition will be evaluated in a future version.
+
+Whisper Configuration
+modelOptions: {
+  whisper: {
+    language: 'en',
+    task: 'transcribe',
+
+    enableTokenTimestamps: false,
+    enableSegmentTimestamps: false,
+
+    tailPaddings: 1000,
+  },
+},
+Current V1 behavior
+English speech → English text
+Offline inference
+No translation
+No token timestamps
+No segment timestamps
+CPU inference
+Whisper Base INT8 model
+Regression & Stress Testing
+
+The STT implementation was tested using both controlled test sentences and practical real-world speech scenarios.
+
+The testing included 8 controlled test cases along with 30+ repeated speech trials and additional tests using another speaker.
+
+Speech conditions tested
+Normal conversational speech
+Fast speech
+Long natural speech
+Technical terminology
+Numbers
+Different sentence structures
+Different speakers
+Different accents
+Background audio
+Changing microphone distance
+Phone held naturally in hand
+Phone positioned on a desk
+Speaker moving toward and away from the phone
+Lower-performance Android device testing
+Distance Testing
+
+The phone microphone was tested from multiple distances:
+
+Close to the mouth
+~10 cm
+~50 cm
+~2–3 feet
+~5–7 feet
+~7–8 feet
+Moving between different distances while speaking
+Base observations
+
+Whisper Base continued to produce usable transcription at significantly larger distances.
+
+With the primary speaker's accent, speech remained approximately 80–90% correct in the tested far-distance/moving scenarios.
+
+With another speaker using a different accent, accuracy decreased at larger distances, with some tests producing approximately 30–40% correct transcription.
+
+This behavior was considered reasonable given the combination of:
+
+microphone distance
+different speaker
+different accent
+environmental conditions
+
+The objective was not perfect transcription at extreme distance, but practical speech recognition in an assistant-style environment.
+
+Background Noise Testing
+
+Background audio was introduced using an anime playing at a noticeable volume.
+
+The test was performed with both Whisper Tiny and Whisper Base.
+
+Result
+
+Both models were able to recognize the primary speaker while largely avoiding transcription of the background anime speech.
+
+Additional testing was performed using English audio from:
+
+Demon Slayer: Kimetsu no Yaiba
+
+The background speech did not consistently override the primary speaker's voice.
+
+This was considered an important test because VINXO is intended to operate in real-world environments rather than only in silent rooms.
+
+Natural Speech Testing
+
+Long natural speech was tested using approximately:
+
+12-second utterances
+16-second utterances
+18-second utterances
+
+Different speaking speeds were also tested.
+
+Whisper Base successfully handled these longer natural speech samples with occasional word substitutions or omissions.
+
+Fast speech produced some differences in individual words, particularly with technical terms or words affected by pronunciation/accent.
+
+Technical Words & Numbers
+
+Technical terminology and numbers were included in the test sentences.
+
+Examples included terminology related to:
+
+React Native
+Qwen
+Whisper
+Software development
+VINXO architecture
+
+Numbers were also included in the test sentences.
+
+The models generally handled numbers well, while certain technical/model names were occasionally transcribed differently depending on pronunciation.
+
+For example, model names such as Qwen and Whisper could occasionally be interpreted differently due to accent and pronunciation.
+
+This was considered acceptable for V1.
+
+Whisper Tiny vs Whisper Base
+
+Whisper Tiny INT8 was tested extensively before selecting the V1 model.
+
+Whisper Tiny
+
+Typical RTF:
+
+~0.10 – 0.20
+
+Longer sentences were generally around:
+
+~0.17+
+
+Tiny performed very well for its size and showed particularly strong inference speed.
+
+It handled:
+
+Normal speech
+Fast speech
+Long speech
+Numbers
+Technical terminology
+Background audio
+
+However, performance degraded more noticeably when the speaker moved farther away from the phone.
+
+Whisper Base
+
+Typical RTF:
+
+~0.21 – 0.28
+
+Longer sentences were generally around:
+
+~0.25+
+
+Base provided stronger practical performance for the intended VINXO assistant scenario, particularly when:
+
+The phone was placed on a desk
+The speaker was several feet away
+The speaker moved while talking
+A different accent was used
+Speech was recorded in a less controlled environment
+
+The additional inference cost was considered acceptable for the V1 offline STT use case.
+
+Practical VINXO Scenario
+
+One of the most important tests was based on the expected real-world VINXO interaction:
+
+Phone
+  ↓
+placed on a desk
+
+        Speaker
+           ↓
+      2–3 desks away
+           ↓
+      speaks normally
+
+Whisper Base continued to provide usable transcription in this type of scenario.
+
+This was considered more representative of VINXO's intended use than testing only with the phone immediately next to the speaker's mouth.
+
+Lifecycle Observation
+
+During repeated testing, an intermittent behavior was observed where the transcription occasionally appeared to contain only the most recent sentence.
+
+This occurred with both Whisper Tiny and Whisper Base.
+
+Observed frequency:
+
+30+ total speech trials
+        ↓
+approximately 2–3 occurrences
+
+Because the behavior occurred across both models, it is currently treated as a speech/audio lifecycle or buffering issue rather than a Whisper model-specific accuracy issue.
+
+Possible areas for future investigation include:
+
+Audio buffer lifecycle
+Recording window reset
+Inference window management
+Transcript replacement vs accumulation
+Audio arriving during inference
+Automatic recording/session restart
+
+This issue does not currently block the V1 STT model selection.
+
+Final V1 Decision
+
+After regression testing and real-world stress testing:
+
+✅ VINXO V1 STT
+Model       : Whisper Base INT8
+Language    : English
+Task        : Transcribe
+Runtime     : Sherpa-ONNX
+Inference   : Offline
+Provider    : CPU
+
+Whisper Tiny was useful as the lightweight comparison model, but Whisper Base is now locked as the STT model for VINXO V1.
+
+The Tiny model can be removed from the application assets after the benchmark.
+
+Future Multilingual Support
+
+Multilingual speech recognition is not part of V1.
+
+The current configuration explicitly uses:
+
+language: 'en'
+
+Future versions will investigate:
+
+Kannada
+Hindi
+English
+Mixed-language speech
+Language detection
+Whisper multilingual model configuration
+Code-switching between Indian languages and English
+
+The multilingual architecture will be evaluated separately rather than complicating the V1 implementation.
+
+V1 Status
+STT model selection       ✅ Complete
+Whisper Tiny benchmark   ✅ Complete
+Whisper Base benchmark   ✅ Complete
+8 controlled tests       ✅ Complete
+30+ regression trials    ✅ Complete
+Distance testing         ✅ Complete
+Background-noise testing ✅ Complete
+Accent testing           ✅ Complete
+Fast-speech testing      ✅ Complete
+Long-speech testing      ✅ Complete
+Technical-word testing   ✅ Complete
+Numbers testing          ✅ Complete
+V1 model locked          ✅ Whisper Base INT8
+
+Lifecycle investigation  ⏳ Future work
+Multilingual STT         ⏳ Future version
+🔒 Decision
+
+Whisper Base INT8 is the official VINXO V1 offline Speech-to-Text engine.
+
+🌶️ Regression + stress testing completed.
+🔥 STT selection locked.

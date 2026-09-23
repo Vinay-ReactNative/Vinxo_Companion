@@ -16,6 +16,8 @@ import VinxoHomeScreen from './src/Presentation/Screens/VinxoHomeScreen';
 import { hydrateStore, store } from './src/store/store';
 import NativeControlPlayground from './src/Playground/NativeControlPlayground';
 import KokoroTest from './src/Playground/KokoroTest';
+import MicTest from './src/Playground/MicTest';
+import Whispertest from './src/Playground/Whispertest';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -41,9 +43,10 @@ function AppContent() {
     <View style={styles.container}>
     {/* <VinxoHomeScreen /> */}
     {/* <NativeControlPlayground /> */}
-    <KokoroTest />
-
-    </View>
+    {/* <KokoroTest /> */}
+    {/* <MicTest /> */}
+    <Whispertest />
+     </View>
   );
 }
 

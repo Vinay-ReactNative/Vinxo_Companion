@@ -127,7 +127,7 @@ const KokoroTest = () => {
       console.log('KOKORO: Starting speech stream');
 
       await tts.generateSpeechStream(
-        'Hello Vinay. Welcome back to VINXO. Today we are testing local speech generation using Kokoro running entirely on the Android device. The speech is generated locally, converted into PCM audio chunks, and streamed directly to the speaker. There is no cloud voice service involved in this process. This is only the beginning of the VINXO voice system.',
+        'Hello Vinay. Hello Shashikala ,Hello Basavaraju , Welcome back to VINXO. Today we are testing local speech generation using Kokoro running entirely on the Android device. The speech is generated locally, converted into PCM audio chunks, and streamed directly to the speaker. There is no cloud voice service involved in this process. This is only the beginning of the VINXO voice system.',
         {
           sid: 1,
           speed: 1.0,

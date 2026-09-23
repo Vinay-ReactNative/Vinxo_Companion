@@ -83,3 +83,8 @@ android/app/src/main/assets/kokoro-en-v0_19/
 
 # Local environment secrets
 .env
+files/models/*.apk
+files/models/*.aab
+files/models/*.apk
+files/models/*.aab
+android/app/src/main/assets/sherpa-onnx-whisper-base/
