@@ -1,6 +1,7 @@
 package com.vinxocompanion
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,14 +15,17 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import android.provider.ContactsContract
+import android.provider.AlarmClock
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class DeviceControlModule(
     private val reactContext: ReactApplicationContext,
@@ -230,6 +234,32 @@ class DeviceControlModule(
         }
     }
 
+@ReactMethod
+fun setVolumePercent(percent: Int, promise: Promise) {
+    try {
+        val audioManager =
+            reactContext.getSystemService(AudioManager::class.java)
+
+        val maxVolume =
+            audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+
+        val targetVolume = (
+            maxVolume * percent.coerceIn(0, 100) / 100.0
+        ).roundToInt()
+
+        audioManager.setStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            targetVolume,
+            AudioManager.FLAG_SHOW_UI,
+        )
+
+        promise.resolve(true)
+    } catch (error: Exception) {
+        promise.reject("VOLUME_PERCENT_ERROR", error.message, error)
+    }
+}
+
+
     @ReactMethod
     fun toggleMedia(promise: Promise) {
         try {
@@ -276,25 +306,47 @@ class DeviceControlModule(
         }
     }
 
-    @ReactMethod
-    fun readLocationStatus(promise: Promise) {
-        try {
-            if (reactContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                promise.reject("LOCATION_PERMISSION_REQUIRED", "Location permission is required")
-                return
-            }
+    // @ReactMethod
+    // fun readLocationStatus(promise: Promise) {
+    //     try {
+    //         if (reactContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
+    //             PackageManager.PERMISSION_GRANTED
+    //         ) {
+    //             promise.reject("LOCATION_PERMISSION_REQUIRED", "Location permission is required")
+    //             return
+    //         }
 
-            val locationManager = reactContext.getSystemService(LocationManager::class.java)
-            val result = Arguments.createMap()
-            result.putBoolean("enabled", locationManager.isLocationEnabled)
-            result.putString("status", if (locationManager.isLocationEnabled) "enabled" else "disabled")
-            promise.resolve(result)
-        } catch (error: Exception) {
-            promise.reject("LOCATION_ERROR", error.message, error)
-        }
+    //         val locationManager = reactContext.getSystemService(LocationManager::class.java)
+    //         val result = Arguments.createMap()
+    //         result.putBoolean("enabled", locationManager.isLocationEnabled)
+    //         result.putString("status", if (locationManager.isLocationEnabled) "enabled" else "disabled")
+    //         promise.resolve(result)
+    //     } catch (error: Exception) {
+    //         promise.reject("LOCATION_ERROR", error.message, error)
+    //     }
+    // }
+
+@ReactMethod
+fun readLocationStatus(promise: Promise) {
+    try {
+        val locationManager =
+            reactContext.getSystemService(LocationManager::class.java)
+
+        val enabled = locationManager.isLocationEnabled
+
+        val result = Arguments.createMap()
+        result.putBoolean("enabled", enabled)
+        result.putString(
+            "status",
+            if (enabled) "enabled" else "disabled"
+        )
+
+        promise.resolve(result)
+    } catch (error: Exception) {
+        promise.reject("LOCATION_ERROR", error.message, error)
     }
+}
+
 
     @ReactMethod
     fun readBluetoothStatus(promise: Promise) {
@@ -317,6 +369,47 @@ class DeviceControlModule(
         }
     }
 
+@ReactMethod
+fun requestBluetoothEnable(promise: Promise) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            reactContext.checkSelfPermission(
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            promise.reject(
+                "BLUETOOTH_PERMISSION_REQUIRED",
+                "Bluetooth permission is required"
+            )
+            return
+        }
+
+        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        reactContext.startActivity(intent)
+        promise.resolve(true)
+    } catch (error: Exception) {
+        promise.reject("BLUETOOTH_ENABLE_ERROR", error.message, error)
+    }
+}
+
+@ReactMethod
+fun openBluetoothSettings(promise: Promise) {
+    try {
+        val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        reactContext.startActivity(intent)
+        promise.resolve(true)
+    } catch (error: Exception) {
+        promise.reject("BLUETOOTH_SETTINGS_ERROR", error.message, error)
+    }
+}
+
+
     @ReactMethod
     fun readWifiStatus(promise: Promise) {
         try {
@@ -330,31 +423,84 @@ class DeviceControlModule(
         }
     }
 
-    @ReactMethod
-    fun setAlarm(promise: Promise) = launchIntent(
-        Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
-            putExtra(android.provider.AlarmClock.EXTRA_HOUR, 8)
-            putExtra(android.provider.AlarmClock.EXTRA_MINUTES, 0)
-            putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "VINXO alarm")
-        },
-        "ALARM",
-        promise,
-    )
+@ReactMethod
+fun setTimer(seconds: Int, label: String, promise: Promise){
+    try {
+        if (seconds !in 1..86400) {
+            promise.reject(
+                "INVALID_TIMER",
+                "Timer must be between 1 second and 24 hours"
+            )
+            return
+        }
 
-    @ReactMethod
-    fun setTimer(promise: Promise) = launchIntent(
-        Intent(android.provider.AlarmClock.ACTION_SET_TIMER).apply {
-            putExtra(android.provider.AlarmClock.EXTRA_LENGTH, 60)
-            putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "VINXO timer")
-        },
-        "TIMER",
-        promise,
-    )
+        val intent = Intent(AlarmClock.ACTION_SET_TIMER).apply {
+            putExtra(AlarmClock.EXTRA_LENGTH, seconds)
+            putExtra(AlarmClock.EXTRA_MESSAGE, label)
+            putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        if (intent.resolveActivity(reactContext.packageManager) == null) {
+            promise.reject("TIMER_UNAVAILABLE", "No compatible timer app found")
+            return
+        }
+
+        reactContext.startActivity(intent)
+        promise.resolve(true)
+    } catch (error: Exception) {
+        promise.reject("TIMER_ERROR", error.message, error)
+    }
+}
+
+@ReactMethod
+fun setAlarm(hour: Int, minute: Int, label: String, promise: Promise) {
+    try {
+        if (hour !in 0..23 || minute !in 0..59) {
+            promise.reject("INVALID_ALARM_TIME", "Invalid alarm time")
+            return
+        }
+
+        val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+            putExtra(AlarmClock.EXTRA_HOUR, hour)
+            putExtra(AlarmClock.EXTRA_MINUTES, minute)
+            putExtra(AlarmClock.EXTRA_MESSAGE, label)
+            putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        if (intent.resolveActivity(reactContext.packageManager) == null) {
+            promise.reject("ALARM_UNAVAILABLE", "No compatible alarm app found")
+            return
+        }
+
+        reactContext.startActivity(intent)
+        promise.resolve(true)
+    } catch (error: Exception) {
+        promise.reject("ALARM_ERROR", error.message, error)
+    }
+}
+
 
     @ReactMethod
     fun vibrate(promise: Promise) {
         try {
-            val vibrator = reactContext.getSystemService(Vibrator::class.java)
+            val vibrator: Vibrator? =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    reactContext.getSystemService(VibratorManager::class.java)
+                        ?.defaultVibrator
+                } else {
+                    reactContext.getSystemService(Vibrator::class.java)
+                }
+
+            if (vibrator == null || !vibrator.hasVibrator()) {
+                promise.reject(
+                    "VIBRATOR_UNAVAILABLE",
+                    "This device does not have a vibrator",
+                )
+                return
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {

@@ -19,4 +19,14 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+
+        override fun onResume() {
+        super.onResume()
+
+        android.util.Log.d(
+            "VINXO_ACTIVITY",
+            "MainActivity resumed"
+        )
+    }
 }

@@ -24,8 +24,8 @@ interface DeviceControlModule {
   readLocationStatus(): Promise<{ enabled: boolean; status: string }>;
   readBluetoothStatus(): Promise<{ available: boolean; enabled: boolean }>;
   readWifiStatus(): Promise<{ enabled: boolean }>;
-  setAlarm(): Promise<boolean>;
-  setTimer(): Promise<boolean>;
+setTimer(seconds: number): Promise<boolean>;
+setAlarm(hour: number, minute: number): Promise<boolean>;
   vibrate(): Promise<boolean>;
   openCamera(): Promise<boolean>;
   openAudioRecorder(): Promise<boolean>;
@@ -33,6 +33,9 @@ interface DeviceControlModule {
   openNotificationSettings(): Promise<boolean>;
   openScreenCapturePrompt(): Promise<boolean>;
   openAppSettings(): Promise<boolean>;
+  requestBluetoothEnable(): Promise<boolean>;
+  openBluetoothSettings(): Promise<boolean>;
+  setVolumePercent(percent: number): Promise<boolean>;
 }
 
 type DeviceControlCapability =
@@ -333,11 +336,11 @@ const NativeControlPlayground = () => {
           setStatus('Notification access settings opened');
           return;
         case 'SET_ALARM':
-          await DeviceControl?.setAlarm();
+          await DeviceControl?.setAlarm(8, 0);
           setStatus('Alarm screen opened');
           return;
         case 'SET_TIMER':
-          await DeviceControl?.setTimer();
+          await DeviceControl?.setTimer(60);
           setStatus('Timer screen opened');
           return;
         case 'VIBRATE':
